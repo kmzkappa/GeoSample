@@ -40,8 +40,7 @@ public class MainActivity extends AppCompatActivity {
             registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), result -> {
                 if (Boolean.TRUE.equals(result.get(Manifest.permission.ACCESS_FINE_LOCATION))) {
                     Log.d(TAG, "ACCESS_FINE_LOCATION granted.");
-                    // FINE_LOCATIONが許可されたので、続けてBACKGROUND_LOCATIONの確認/要求を行う
-                    startListenGeofence();
+                    addGeofences();
                 } else {
                     Log.w(TAG, "ACCESS_FINE_LOCATION not granted.");
                 }
@@ -62,7 +61,7 @@ public class MainActivity extends AppCompatActivity {
         Button startButton = findViewById(R.id.start_geofence_button);
         startButton.setOnClickListener(v -> {
             Log.d(TAG, "Start Geofence button clicked");
-            startListenGeofence();
+            addGeofences();
         });
 
         Button stopButton = findViewById(R.id.stop_geofence_button);
@@ -70,9 +69,15 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, "Stop Geofence button clicked");
             stopListenGeofence();
         });
+
+        Button grantButton = findViewById(R.id.grant_permission_button);
+        grantButton.setOnClickListener(v -> {
+            grantPermission();
+        });
     }
 
-    private void startListenGeofence() {
+
+    private void grantPermission() {
         // Step 1: まずはFINE_LOCATIONの権限を確認
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             requestPermissionLauncher.launch(new String[]{Manifest.permission.ACCESS_FINE_LOCATION});
@@ -93,11 +98,9 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
         }
-
-        // Step 3: すべての権限が揃っていれば、ジオフェンスを開始
-        Log.d(TAG, "All permissions are granted. Starting geofence.");
-        addGeofences();
     }
+
+
 
     private void addGeofences() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -107,9 +110,10 @@ public class MainActivity extends AppCompatActivity {
         List<Geofence> geofenceList = new ArrayList<>();
         Geofence geofence = new Geofence.Builder()
                 .setRequestId("request-id-1")
-                .setCircularRegion(35.7146004, 139.8625569, 1000f)
+                .setCircularRegion(35.714562, 139.865203, 1000f)
                 .setExpirationDuration(Geofence.NEVER_EXPIRE)
                 .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER | Geofence.GEOFENCE_TRANSITION_EXIT)
+//                .setLoiteringDelay(10000)
                 .build();
         geofenceList.add(geofence);
 
