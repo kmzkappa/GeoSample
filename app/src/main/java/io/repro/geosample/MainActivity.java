@@ -38,30 +38,11 @@ public class MainActivity extends AppCompatActivity {
     // 権限リクエストの結果を処理するランチャー
     private final ActivityResultLauncher<String[]> requestPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), result -> {
-                // 1. まずはFINE_LOCATIONが許可されたかチェック
                 if (Boolean.TRUE.equals(result.get(Manifest.permission.ACCESS_FINE_LOCATION))) {
                     Log.d(TAG, "ACCESS_FINE_LOCATION granted.");
-                    // 2. 次にBACKGROUND_LOCATIONが必要か、そして許可されたかチェック
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                            Log.d(TAG, "ACCESS_BACKGROUND_LOCATION granted.");
-                            // 両方許可されたのでジオフェンスを開始
-                            addGeofences();
-                        } else {
-                            // BACKGROUNDが拒否された場合
-                            Log.w(TAG, "ACCESS_BACKGROUND_LOCATION not granted.");
-                            new AlertDialog.Builder(this)
-                                    .setTitle("注意")
-                                    .setMessage("バックグラウンドでの位置情報へのアクセスが許可されませんでした。ジオフェンス機能は利用できません。")
-                                    .setPositiveButton("OK", null)
-                                    .show();
-                        }
-                    } else {
-                        // Android 10 (Q) 未満ではBACKGROUND権限は不要
-                        addGeofences();
-                    }
+                    // FINE_LOCATIONが許可されたので、続けてBACKGROUND_LOCATIONの確認/要求を行う
+                    startListenGeofence();
                 } else {
-                    // FINE_LOCATIONが拒否された場合
                     Log.w(TAG, "ACCESS_FINE_LOCATION not granted.");
                 }
             });
@@ -94,7 +75,6 @@ public class MainActivity extends AppCompatActivity {
     private void startListenGeofence() {
         // Step 1: まずはFINE_LOCATIONの権限を確認
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // FINE_LOCATIONがなければリクエスト
             requestPermissionLauncher.launch(new String[]{Manifest.permission.ACCESS_FINE_LOCATION});
             return;
         }
@@ -102,12 +82,10 @@ public class MainActivity extends AppCompatActivity {
         // Step 2: Android 10以上の場合、次にBACKGROUND_LOCATIONの権限を確認
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                // BACKGROUND_LOCATIONがなければ、理由を説明してリクエスト
                 new AlertDialog.Builder(this)
                         .setTitle("バックグラウンドでの位置情報利用について")
                         .setMessage("このアプリは、ジオフェンス機能のためにバックグラウンドで位置情報を継続的に利用します。「設定」画面で、位置情報の権限を「常に許可」に設定してください。")
                         .setPositiveButton("設定画面へ", (dialog, which) -> {
-                            // BACKGROUND_LOCATION権限をリクエスト
                             requestPermissionLauncher.launch(new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION});
                         })
                         .setNegativeButton("キャンセル", null)
@@ -117,21 +95,20 @@ public class MainActivity extends AppCompatActivity {
         }
 
         // Step 3: すべての権限が揃っていれば、ジオフェンスを開始
-        Log.d(TAG, "All permissions are already granted. Starting geofence.");
+        Log.d(TAG, "All permissions are granted. Starting geofence.");
         addGeofences();
     }
 
     private void addGeofences() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            Log.w(TAG, "Tried to add geofences without FINE_LOCATION permission.");
             return; // 念のためのチェック
         }
 
         List<Geofence> geofenceList = new ArrayList<>();
         Geofence geofence = new Geofence.Builder()
                 .setRequestId("request-id-1")
-                .setCircularRegion(35.7146004, 139.8625569, 1000f) // radiusはメートル
-                .setExpirationDuration(Geofence.NEVER_EXPIRE) // ジオフェンスの有効期限
+                .setCircularRegion(35.7146004, 139.8625569, 1000f)
+                .setExpirationDuration(Geofence.NEVER_EXPIRE)
                 .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER | Geofence.GEOFENCE_TRANSITION_EXIT)
                 .build();
         geofenceList.add(geofence);
@@ -152,8 +129,6 @@ public class MainActivity extends AppCompatActivity {
             return mGeofencePendingIntent;
         }
         Intent intent = new Intent(this, GeofenceBroadcastReceiver.class);
-
-        // Android 12 (API 31) 以降では、FLAG_IMMUTABLE または FLAG_MUTABLE の指定が必須
         int flags = PendingIntent.FLAG_UPDATE_CURRENT;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             flags |= PendingIntent.FLAG_IMMUTABLE;
