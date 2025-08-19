@@ -129,9 +129,14 @@ public class MainActivity extends AppCompatActivity {
             return mGeofencePendingIntent;
         }
         Intent intent = new Intent(this, GeofenceBroadcastReceiver.class);
-        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            flags |= PendingIntent.FLAG_IMMUTABLE;
+
+        // フラグを FLAG_IMMUTABLE のみに修正します。
+        // Android 12 (API 31) 以降では FLAG_IMMUTABLE または FLAG_MUTABLE のどちらかの指定が必須です。
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT; // UPDATE_CURRENTは残しても良いですが、IMMUTABLEとの併用が問題でした
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // Android 12 (S) 以降は、MUTABLEかIMMUTABLEが必須
+            // GeofenceのIntentにはシステムが情報を書き込むため、MUTABLEにするのが安全
+            flags |= PendingIntent.FLAG_MUTABLE;
         }
         mGeofencePendingIntent = PendingIntent.getBroadcast(this, 0, intent, flags);
         return mGeofencePendingIntent;
