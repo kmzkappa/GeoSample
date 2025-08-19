@@ -50,7 +50,6 @@ public class MainActivity extends AppCompatActivity {
                         } else {
                             // BACKGROUNDが拒否された場合
                             Log.w(TAG, "ACCESS_BACKGROUND_LOCATION not granted.");
-                            // なぜ必要なのかを説明するダイアログなどを表示するのが親切
                             new AlertDialog.Builder(this)
                                     .setTitle("注意")
                                     .setMessage("バックグラウンドでの位置情報へのアクセスが許可されませんでした。ジオフェンス機能は利用できません。")
@@ -138,23 +137,13 @@ public class MainActivity extends AppCompatActivity {
         geofenceList.add(geofence);
 
         GeofencingRequest geofencingRequest = new GeofencingRequest.Builder()
-                .setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_ENTER) // DWELL推奨
+                .setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_ENTER)
                 .addGeofences(geofenceList)
                 .build();
 
         mGeofencingClient.addGeofences(geofencingRequest, getGeofencePendingIntent())
-                .addOnSuccessListener(this, new OnSuccessListener<Void>() {
-                    @Override
-                    public void onSuccess(Void unused) {
-                        Log.i(TAG, "Geofences added successfully.");
-                    }
-                })
-                .addOnFailureListener(this, new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        Log.e(TAG, "Failed to add geofences.", e);
-                    }
-                });
+                .addOnSuccessListener(this, unused -> Log.i(TAG, "Geofences added successfully."))
+                .addOnFailureListener(this, e -> Log.e(TAG, "Failed to add geofences.", e));
     }
 
 
@@ -176,18 +165,8 @@ public class MainActivity extends AppCompatActivity {
     private void stopListenGeofence() {
         if (mGeofencingClient != null) {
             mGeofencingClient.removeGeofences(getGeofencePendingIntent())
-                    .addOnSuccessListener(this, new OnSuccessListener<Void>() {
-                        @Override
-                        public void onSuccess(Void unused) {
-                            Log.i(TAG, "Geofences removed successfully.");
-                        }
-                    })
-                    .addOnFailureListener(this, new OnFailureListener() {
-                        @Override
-                        public void onFailure(@NonNull Exception e) {
-                            Log.e(TAG, "Failed to remove geofences.", e);
-                        }
-                    });
+                    .addOnSuccessListener(this, unused -> Log.i(TAG, "Geofences removed successfully."))
+                    .addOnFailureListener(this, e -> Log.e(TAG, "Failed to remove geofences.", e));
         }
     }
 }
