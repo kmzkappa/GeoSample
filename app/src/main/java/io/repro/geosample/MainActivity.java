@@ -9,6 +9,8 @@ import android.util.Log;
 import android.widget.Button;
 
 import androidx.activity.EdgeToEdge;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
@@ -36,6 +38,20 @@ public class MainActivity extends AppCompatActivity {
     private GeofencingClient mGeofencingClient;
     private PendingIntent mGeofencePendingIntent;
 
+
+
+    private final ActivityResultLauncher<String[]> requestPermissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), isGranted -> {
+                if (isGranted.containsValue(true)) {
+                    // 権限が許可された場合、ジオフェンス開始処理を呼び出す
+                    Log.d(TAG, "Permissions granted, starting geofence.");
+                    addGeofences();
+                } else {
+                    // 権限が拒否された場合の処理
+                    Log.w(TAG, "Permissions not granted.");
+                }
+            });
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -46,9 +62,6 @@ public class MainActivity extends AppCompatActivity {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
-
-
-        int res = GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(this);
 
 
         Button startButton = findViewById(R.id.start_geofence_button);
@@ -66,55 +79,48 @@ public class MainActivity extends AppCompatActivity {
 
 
 
+
+
+
+
     private void startListenGeofence() {
         mGeofencingClient = LocationServices.getGeofencingClient(this);
 
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED ||
+                ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+
+
+            // 必要な権限をすべて一度にリクエストする
+            requestPermissionLauncher.launch(new String[] {
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_BACKGROUND_LOCATION
+            });
+        } else {
+            // 既に権限があれば、直接ジオフェンスを追加
+            addGeofences();
+        }
+    }
+
+
+    private void addGeofences() {
         List<Geofence> geofenceList = new ArrayList<>();
         Geofence geofence = new Geofence.Builder()
                 .setRequestId("request-id-1")
-                .setCircularRegion(35.7146004,139.8625569, 1000f) // radiusはメートル
-                .setExpirationDuration(Geofence.NEVER_EXPIRE) // ジオフェンスの有効期限
+                .setCircularRegion(35.7146004, 139.8625569, 1000f)
+                .setExpirationDuration(Geofence.NEVER_EXPIRE)
                 .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER | Geofence.GEOFENCE_TRANSITION_EXIT)
                 .build();
         geofenceList.add(geofence);
 
-        GeofencingRequest.Builder builder = new GeofencingRequest.Builder();
-        // 既にジオフェンス内にいるとき、GEOFENCE_TRANSITION_ENTERをトリガーする必要があることを指示する
-        builder.setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_ENTER); // DWELL推奨
-
-        builder.addGeofence(geofence);
-        GeofencingRequest geofencingRequest = builder.build();
-
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, 0);
-            return;
-        }
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 0);
-            return;
-        }
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION}, 0);
-            return;
-        }
+        GeofencingRequest geofencingRequest = new GeofencingRequest.Builder()
+                .setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_ENTER)
+                .addGeofences(geofenceList) //
+                .build();
 
 
-
-        mGeofencingClient
-                .addGeofences(geofencingRequest, getGeofencePendingIntent())
-                .addOnSuccessListener(this, new OnSuccessListener<Void>() {
-                    @Override
-                    public void onSuccess(Void unused) {
-                        Log.i(TAG, "Geofences added successfully.");
-                    }
-                })
-                .addOnFailureListener(this, new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        Log.e(TAG, "Failed to add geofences.", e);
-                    }
-                });
-
+        mGeofencingClient.addGeofences(geofencingRequest, getGeofencePendingIntent())
+                .addOnSuccessListener(this, unused -> Log.i(TAG, "Geofences added successfully."))
+                .addOnFailureListener(this, e -> Log.e(TAG, "Failed to add geofences.", e));
     }
 
     private PendingIntent getGeofencePendingIntent() {
